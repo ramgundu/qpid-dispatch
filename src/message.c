@@ -224,7 +224,11 @@ static void print_parsed_field(qd_parsed_field_t *parsed_field, char **begin, ch
            //qd_iterator_t* iter = qd_message_field_iterator(msg, field);
            qd_iterator_t *iter = qd_parse_raw(parsed_field);
            while (!qd_iterator_end(iter) && timestamp_length > 0) {
+               #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+               timestamp_bytes[abs(timestamp_length-- - 8)] = qd_iterator_octet(iter);
+               #else
                timestamp_bytes[--timestamp_length] = qd_iterator_octet(iter);
+               #endif
            }
            memcpy(&creation_timestamp, timestamp_bytes, 8);
            if (creation_timestamp > 0) {
