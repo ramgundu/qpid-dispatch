@@ -1,5 +1,4 @@
 #
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License
 #
-
+​
 language: c
 cache: ccache
 jobs:
@@ -36,6 +35,7 @@ jobs:
       apt:
         packages: 
           - maven
+          - make
     install: []
     before_script: []
     script:
@@ -53,9 +53,13 @@ jobs:
   - name: "qdrouterd:Debug"
     os: linux
     arch: s390x
+    dist: xenial
     before_install:
-    - sudo apt-get install npm git
-    - npm -v
+    - sudo apt-get install npm
+    - sudo npm install -g node-gyp
+    - sudo apt-get install git
+    - sudo apt-get install make
+#    - npm -v
     - sudo npm cache clean
     env:
     - PATH="/usr/bin:$PATH" PROTON_VERSION="0.34.0" BUILD_TYPE=Debug
@@ -118,24 +122,34 @@ addons:
     - tox
     # code coverage
     - lcov
-
+​
 before_install:
 # Install and use the latest Node.js LTS version
+- sudo apt-get install curl
+- curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
+- export NVM_DIR="$HOME/.nvm"
+- [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+- [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+- nvm --version
+- nvm install node
+- node --version
 - nvm install "lts/*"
-
+- nvm install 8.10.0
+- nvm ls
+​
 install:
 - NPROC=2
 - PREFIX=$PWD/install
 - git clone --depth=10 --branch=$PROTON_VERSION https://github.com/apache/qpid-proton.git
 - cmake -version
-
+​
 # Build and install proton from source.
 - mkdir qpid-proton/build
 - pushd qpid-proton/build
 - cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX -DBUILD_PYTHON=YES -DBUILD_JAVASCRIPT=NO -DBUILD_CPP=NO -DBUILD_GO=NO -DBUILD_RUBY=NO -DBUILD_PHP=NO -DBUILD_PERL=NO
 - cmake --build . --target install -- -j $NPROC
 - popd
-
+​
 before_script:
 - source qpid-proton/build/config.sh
 - mkdir build
@@ -143,7 +157,7 @@ before_script:
 - cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${DISPATCH_CMAKE_ARGS}
 - . config.sh
 - make -j $NPROC
-
+​
 script:
 - pushd ../qpid-proton
 - echo $(echo "Current proton commit:") $(git rev-parse HEAD) "(${PROTON_VERSION})"
@@ -151,7 +165,7 @@ script:
 # Workaround on macOS for PROTON-808 Binaries have their library locations stripped
 - if [[ "${OSTYPE}" == "darwin"* ]]; then install_name_tool -add_rpath $PREFIX/lib/. $PREFIX/lib/proton/bindings/python/_cproton.so; fi
 - ctest -V && if [ "$BUILD_TYPE" = "Coverage" ]; then cmake --build . --target coverage; fi
-
+​
 after_success:
 - cd ${TRAVIS_BUILD_DIR}/build
 - if [ "$BUILD_TYPE" = "Coverage" ]; then bash <(curl -s https://codecov.io/bash); fi
